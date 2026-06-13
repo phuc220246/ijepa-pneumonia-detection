@@ -10,22 +10,6 @@
 
 ---
 
-## 📋 Mục lục
-
-| # | Nội dung |
-|---|---|
-| 1 | [Tóm tắt đề tài](#-tóm-tắt-đề-tài) |
-| 2 | [Kết quả chính](#-kết-quả-chính) |
-| 3 | [Cấu trúc thư mục](#-cấu-trúc-thư-mục) |
-| 4 | [Cài đặt môi trường](#-cài-đặt-môi-trường) |
-| 5 | [Dữ liệu](#-dữ-liệu) |
-| 6 | [Hướng dẫn chạy](#-hướng-dẫn-chạy) |
-| 7 | [Notebooks](#-notebooks) |
-| 8 | [Tài liệu nghiên cứu](#-tài-liệu-nghiên-cứu) |
-| 9 | [Trích dẫn](#-trích-dẫn) |
-
----
-
 ## 🔬 Tóm tắt đề tài
 
 Nghiên cứu này đề xuất ứng dụng kiến trúc **I-JEPA (Image-based Joint-Embedding Predictive Architecture)** với chiến lược **random patch masking** để phát hiện viêm phổi từ ảnh X-quang ngực trong điều kiện nhãn dữ liệu hạn chế.
@@ -125,7 +109,7 @@ albumentations>=1.3.0
 
 | Dataset | Nguồn | Vai trò |
 |---|---|---|
-| NIH ChestX-ray14 (224×224) | [Kaggle](https://www.kaggle.com/datasets/nih-chest-xrays/data) | Pretraining (không nhãn) |
+| NIH ChestX-ray14 (224×224) | [Kaggle](https://www.kaggle.com/datasets/khanfashee/nih-chest-x-ray-14-224x224-resized) | Pretraining (không nhãn) |
 | RSNA Pneumonia Detection | [Kaggle](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge) | Fine-tuning + Evaluation |
 
 ### Cấu trúc sau khi tải
@@ -148,105 +132,6 @@ albumentations>=1.3.0
 
 ---
 
-## 🚀 Hướng dẫn chạy
-
-### Cách 1 — Chạy bằng Notebooks (Kaggle) ✅ Khuyến nghị
-
-Mở từng notebook theo thứ tự trên Kaggle:
-
-```
-NB01 → NB02 → NB03 → NB04 → NB05 → NB06 → NB07
-```
-
-Xem chi tiết tại phần [Notebooks](#-notebooks) bên dưới.
-
----
-
-### Cách 2 — Chạy bằng script Python
-
-**Bước 1: Chuẩn bị dữ liệu**
-```bash
-python src/datasets/prepare_rsna.py \
-    --input_dir /path/to/rsna/dicom \
-    --output_dir /path/to/rsna/png \
-    --csv_path /path/to/stage_2_train_labels.csv
-```
-
-**Bước 2: Pretrain I-JEPA trên NIH**
-```bash
-python src/training/pretrain.py \
-    --data_csv data/nih_pretrain_50k.csv \
-    --image_dir /path/to/nih/images \
-    --epochs 50 \
-    --batch_size 32 \
-    --mask_ratio 0.75 \
-    --output_dir checkpoints/pretrain/
-```
-
-**Bước 3: Fine-tune trên RSNA**
-```bash
-# Linear Probing
-python src/training/finetune.py \
-    --strategy linear_probe \
-    --encoder_ckpt checkpoints/pretrain/encoder_epoch50.pth \
-    --train_csv data/rsna_train.csv \
-    --val_csv data/rsna_val.csv
-
-# Full Fine-tuning (best)
-python src/training/finetune.py \
-    --strategy full_ft_v1 \
-    --encoder_ckpt checkpoints/pretrain/encoder_epoch50.pth \
-    --train_csv data/rsna_train.csv \
-    --val_csv data/rsna_val.csv
-```
-
-**Bước 4: Đánh giá**
-```bash
-python src/evaluation/metrics.py \
-    --model_ckpt checkpoints/finetune/full_ft_v1_best.pth \
-    --test_csv data/rsna_test.csv \
-    --threshold 0.39
-```
-
-**Bước 5: Sinh heatmap Grad-CAM**
-```bash
-python src/explainability/gradcam.py \
-    --model_ckpt checkpoints/finetune/full_ft_v1_best.pth \
-    --image_path /path/to/xray.png \
-    --output_dir results/heatmaps/
-```
-
----
-
-## 📓 Notebooks
-
-Tất cả thực nghiệm được thực hiện trên **Kaggle GPU T4** dưới dạng notebook `.ipynb`.
-
-| Notebook | Mô tả | Thời gian chạy | Output chính |
-|---|---|---|---|
-| **NB01** `data_preparation` | Đọc DICOM → PNG, tạo split train/val/test cố định (stratified, seed=42) | ~30 phút | `rsna_train/val/test.csv` |
-| **NB02** `baselines` | Train ResNet50 + ViT-Small ImageNet, đánh giá trên test | ~3 giờ | `main_results.csv` (baseline rows) |
-| **NB03** `ijepa_pretrain` | Pretraining I-JEPA trên 50k ảnh NIH không nhãn, 50 epochs | ~4 giờ | `encoder_epoch50.pth` |
-| **NB04** `ijepa_finetune` | Fine-tune 5 cấu hình (Linear/Partial/Full × v1/v2) trên RSNA | ~6 giờ | `*_best.pth`, kết quả AUC |
-| **NB05** `label_efficiency` | Lặp lại train tại 6 mức nhãn (1%→100%) với multiple seeds | ~8 giờ | `label_efficiency.csv` |
-| **NB06** `clahe_ablation` | So sánh pipeline có/không CLAHE trên tất cả mô hình | ~4 giờ | `clahe_ablation.csv` |
-| **NB07** `xai_visualization` | Grad-CAM (ResNet50) + Attention Rollout (ViT/I-JEPA), Pointing Game | ~2 giờ | `heatmaps/`, pointing game scores |
-
-### Thứ tự phụ thuộc
-
-```
-NB01 (data)
-  └── NB02 (baselines)
-  └── NB03 (pretrain)
-        └── NB04 (finetune)
-              ├── NB05 (label efficiency)
-              ├── NB06 (CLAHE ablation)
-              └── NB07 (XAI)
-```
-
-> 💡 **Tip:** NB02 và NB03 có thể chạy song song vì không phụ thuộc nhau.
-
----
 
 ## 🏗️ Kiến trúc I-JEPA
 
@@ -306,12 +191,6 @@ Epoch 50: Loss = 0.0041  (giảm 96.5%, chưa bão hòa)
 
 ---
 
-## 📄 Tài liệu nghiên cứu
-
-| Tài liệu | Mô tả | Link |
-|---|---|---|
-| Bài báo NCKH | Bài báo khoa học đầy đủ (tiếng Anh) | [`docs/paper_NCKH.pdf`](docs/paper_NCKH.pdf) |
-| Báo cáo đề tài | Báo cáo 6 chương (tiếng Việt) | [`docs/BAO_CAO_da_cap_nhat.docx`](docs/BAO_CAO_da_cap_nhat.docx) |
 
 ### Tài liệu tham khảo chính
 

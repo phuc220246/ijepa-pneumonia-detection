@@ -13,3 +13,4 @@ Thư mục chứa toàn bộ Kaggle notebooks (.ipynb) của dự án.
 | label-10-100 | Thực nghiệm 10%-100% nhãn |
 | clahe-ablation | So sánh có/không CLAHE |
 | XAI-gradcam | Grad-CAM + Attention Rollout |
+| main_results | Tổng hợp kết quả |

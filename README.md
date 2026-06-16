@@ -235,7 +235,7 @@ Nếu bạn sử dụng code hoặc kết quả trong nghiên cứu của mình:
 
 **Nguyễn Tống Phúc**  
 Sinh viên NCKH — Trường Đại học Nam Cần Thơ  
-GVHD: ThS. Trần Văn Thiện
+GVHD: NCS. Trần Văn Thiện
 
 ---
 

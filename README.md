@@ -233,7 +233,7 @@ Nếu bạn sử dụng code hoặc kết quả trong nghiên cứu của mình:
 
 ## 👤 Tác giả
 
-**Nguyễn Tống Phúc**  
+**Nguyễn Tòng Phúc**  
 Sinh viên NCKH — Trường Đại học Nam Cần Thơ  
 GVHD: NCS. Trần Văn Thiện
 

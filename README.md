@@ -12,24 +12,25 @@
 
 ## 🔬 Tóm tắt đề tài
 
-Nghiên cứu này đề xuất ứng dụng kiến trúc **I-JEPA (Image-based Joint-Embedding Predictive Architecture)** với chiến lược **random patch masking** để phát hiện viêm phổi từ ảnh X-quang ngực trong điều kiện nhãn dữ liệu hạn chế.
+Nghiên cứu này **đánh giá** việc ứng dụng kiến trúc **I-JEPA (Image-based Joint-Embedding Predictive Architecture)** với chiến lược **random patch masking** cho bài toán phát hiện viêm phổi từ ảnh X-quang ngực, đặc biệt là câu hỏi liệu tiền-huấn-luyện tự giám sát *in-domain* có cải thiện hiệu quả sử dụng nhãn so với khởi tạo ImageNet hay không.
 
-### Vấn đề
+### Vấn đề (động cơ)
 - Thiếu bác sĩ X-quang chuyên khoa tại tuyến cơ sở Việt Nam
 - Gán nhãn ảnh y tế tốn kém: 5–15 phút/ảnh × hàng nghìn ảnh
 - Mô hình học có giám sát cần nhiều nhãn mới hoạt động tốt
 
-### Giải pháp
-- **Phase 1 — Pretraining (không nhãn):** I-JEPA học cấu trúc giải phẫu lồng ngực từ 50.000 ảnh NIH không cần nhãn
-- **Phase 2 — Fine-tuning (ít nhãn):** Chỉ cần ~200 ảnh có nhãn để đạt AUC > 0.80
+### Phương pháp
+- **Phase 1 — Pretraining (không nhãn):** I-JEPA học biểu diễn cấu trúc giải phẫu lồng ngực từ 50.000 ảnh NIH không nhãn (50 epochs, latent-space prediction)
+- **Phase 2 — Fine-tuning & đánh giá:** Tinh chỉnh trên RSNA; Full fine-tuning đạt **AUC = 0.8297** với **Recall = 0.7738** tại ngưỡng mặc định 0.50 — ưu thế rõ về recall/hành vi ngưỡng so với baseline cùng kiến trúc
 
 ### Đóng góp khoa học
 | Đóng góp | Chi tiết |
 |---|---|
-| Kiến trúc mới | I-JEPA + Random Masking cho ảnh X-quang (thay block masking gốc) |
-| Label efficiency | Phân tích hệ thống 6 mức nhãn: 1% → 100% |
-| Ổn định vượt trội | Variance thấp hơn ResNet50 **143 lần** tại 1% nhãn |
-| CLAHE ablation | Phát hiện domain shift nhân tạo khi dùng CLAHE với SSL |
+| Kiến trúc lai | I-JEPA + Random Masking cho ảnh X-quang (thay block masking gốc) |
+| Hành vi ngưỡng (RQ1) | I-JEPA Full FT v1 hoạt động tốt quanh ngưỡng mặc định 0.50 với Recall = 0.7738, cao hơn baseline ViT cùng kiến trúc |
+| Phân tích label efficiency (RQ2) | Đánh giá hệ thống 6 mức nhãn (1% → 100%) với thiết kế chống rò rỉ nhãn — **kết quả trung thực, gồm cả kết quả âm tính** |
+| CLAHE ablation | Phát hiện CLAHE làm giảm AUC nhất quán khi dùng cùng tiền-huấn-luyện SSL (ΔAUC = −0.047) |
+| Pipeline tái lập | Toàn bộ quy trình EDA → SSL pretrain → fine-tune → XAI chạy được trên một Kaggle T4 |
 
 ---
 
@@ -45,15 +46,22 @@ Nghiên cứu này đề xuất ứng dụng kiến trúc **I-JEPA (Image-based 
 | I-JEPA Partial FT v1 | 0.8003 | 0.5630 | 0.6907 | 0.7781 | 0.4752 |
 | I-JEPA Full FT v1 | 0.8297 | 0.5921 | **0.7738** | 0.7333 | 0.5188 |
 
-### Label Efficiency — I-JEPA vs ResNet50 (1% nhãn = 187 ảnh)
+> **Đóng góp chính của I-JEPA không phải AUC tuyệt đối** (thấp hơn baseline do ngân sách pretrain hạn chế) **mà là hành vi ngưỡng**: I-JEPA Full FT v1 đạt Recall = 0.7738 ngay tại ngưỡng mặc định 0.50 — phù hợp bối cảnh tầm soát nơi bỏ sót ca bệnh tốn kém hơn báo động giả.
 
-| Mô hình | AUC (mean) | Std | Ghi chú |
+### Label Efficiency — 6 mức nhãn (Test AUC trên RSNA)
+
+> Cả ba mô hình đều xuất phát từ tiền-huấn-luyện *chưa từng thấy nhãn RSNA*: I-JEPA nạp **encoder SSL (NIH) + đầu phân loại khởi tạo ngẫu nhiên**; baseline nạp trọng số ImageNet. Thiết kế này đảm bảo so sánh hợp lệ, không rò rỉ nhãn.
+
+| %Nhãn (n ảnh) | I-JEPA SSL | ResNet50 | ViT-Small/16 |
 |---|---|---|---|
-| I-JEPA Full FT v2 | **0.8041** | **±0.0002** | Ổn định |
-| ResNet50 ImageNet | 0.7821 | ±0.0286 | Dao động lớn |
-| ViT-Small ImageNet | 0.7906 | ±0.0250 | |
+| 1% (187) | 0.527 ± 0.037 | 0.782 ± 0.016 | 0.789 ± 0.014 |
+| 5% (934) | 0.598 ± 0.024 | 0.800 ± 0.026 | 0.825 ± 0.004 |
+| 10% (1,868) | 0.781 | 0.816 | 0.834 |
+| 25% (4,670) | 0.795 | 0.834 | 0.850 |
+| 50% (9,339) | 0.796 | 0.838 | 0.861 |
+| 100% (18,678) | 0.808 | 0.856 | 0.867 |
 
-> **Phát hiện chính:** I-JEPA ổn định hơn ResNet50 **143 lần** tại 1% nhãn
+> **Phát hiện (RQ2 — kết quả âm tính):** Trong điều kiện tài nguyên của đề tài (pretrain 50 epoch trên 50k ảnh, random masking), I-JEPA in-domain **chưa vượt** baseline ImageNet ở *bất kỳ* mức nhãn nào. Ở 1% (encoder frozen) chỉ đạt ≈ 0.53 do đặc trưng SSL **chưa hội tụ**; khi fine-tune (≥10%) vẫn thấp hơn baseline ~0.05–0.06 AUC. Khoảng cách cố định ngay ở 100% gợi ý nguyên nhân là *chất lượng pretrain* chứ không phải số lượng nhãn — định hướng cần pretrain quy mô/thời lượng lớn hơn.
 
 ### Threshold Tuning — I-JEPA Full FT v1
 
@@ -112,6 +120,8 @@ albumentations>=1.3.0
 | NIH ChestX-ray14 (224×224) | [Kaggle](https://www.kaggle.com/datasets/khanfashee/nih-chest-x-ray-14-224x224-resized) | Pretraining (không nhãn) |
 | RSNA Pneumonia Detection | [Kaggle](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge) | Fine-tuning + Evaluation |
 
+> 🔒 **Kiểm soát rò rỉ dữ liệu:** Ảnh RSNA được tuyển từ các ca *không* nằm trong bản phát hành công khai NIH ChestX-ray14; đã kiểm tra không có chồng lấp bệnh nhân giữa tập pretrain (50k NIH) và tập fine-tune/test (RSNA).
+
 ### Cấu trúc sau khi tải
 
 ```
@@ -131,7 +141,6 @@ albumentations>=1.3.0
 | Test | 4,003 | 902 (22.5%) | 3,101 (77.5%) | 22.5% |
 
 ---
-
 
 ## 🏗️ Kiến trúc I-JEPA
 
@@ -176,7 +185,7 @@ albumentations>=1.3.0
 | Pretraining scale | 300–800 epochs, ImageNet | **50 epochs, NIH 50k** |
 | Hardware | Cluster GPU lớn | **Kaggle T4 (16GB)** |
 
-> **Lý do điều chỉnh:** Random masking đơn giản hơn, ổn định hơn trên Kaggle T4, và được hỗ trợ bởi A-JEPA, Audio-JEPA, RadJEPA cho domain mới.
+> **Lý do điều chỉnh:** Random masking đơn giản hơn, ổn định hơn trên Kaggle T4, và được hỗ trợ bởi A-JEPA, Audio-JEPA, RadJEPA cho domain mới. *Lưu ý:* đề tài chưa thực hiện ablation trực tiếp so block-vs-random masking trên CXR — đây là hướng phát triển.
 
 ---
 
@@ -189,8 +198,9 @@ Epoch 30: Loss ≈ 0.0080  (giảm chậm hơn)
 Epoch 50: Loss = 0.0041  (giảm 96.5%, chưa bão hòa)
 ```
 
----
+> Loss giảm ổn định, không mode collapse — nhưng **chưa bão hòa** ở 50 epoch. Đây là một nguyên nhân chính khiến biểu diễn SSL chưa đủ mạnh để cạnh tranh với ImageNet transfer (xem phần Label Efficiency).
 
+---
 
 ### Tài liệu tham khảo chính
 
@@ -207,11 +217,12 @@ Epoch 50: Loss = 0.0041  (giảm 96.5%, chưa bão hòa)
 
 ## ⚠️ Giới hạn nghiên cứu
 
-1. **Compute budget:** Chỉ 50 epochs pretrain (loss chưa bão hòa) — AUC là giới hạn dưới
-2. **Random masking:** Không implement block masking gốc của I-JEPA
-3. **Dữ liệu Mỹ only:** Chưa validate trên ảnh X-quang bệnh nhân Việt Nam
-4. **XAI không đồng nhất:** Grad-CAM (ResNet50) vs Attention Rollout (ViT/I-JEPA) — không so sánh trực tiếp được
-5. **Single seed ≥10%:** Crossover point là ước lượng, chưa xác nhận thống kê
+1. **Ngân sách compute:** Chỉ 50 epochs pretrain trên 50k ảnh (loss chưa bão hòa) — nhiều khả năng là nguyên nhân chính khiến I-JEPA in-domain chưa vượt baseline ImageNet
+2. **Random masking:** Chưa implement và ablate block masking gốc của I-JEPA trên CXR
+3. **Dữ liệu Mỹ only:** Chưa validate trên ảnh X-quang bệnh nhân Việt Nam (VinDr-CXR là hướng ưu tiên)
+4. **XAI không đồng nhất:** Grad-CAM (ResNet50) vs Attention Rollout (ViT/I-JEPA) — chưa so sánh trực tiếp được
+5. **Single seed ≥10%:** Kết quả label-efficiency ở vùng 10–100% là một lần chạy (seed = 42), chưa đánh giá đa-seed
+6. **Chưa kiểm định thống kê:** Khoảng cách AUC giữa các mô hình chưa được xác nhận bằng DeLong test / bootstrap CI
 
 ---
 
@@ -222,7 +233,7 @@ Nếu bạn sử dụng code hoặc kết quả trong nghiên cứu của mình:
 ```bibtex
 @article{nguyen2026ijepa_pneumonia,
   title     = {Self-Supervised Pneumonia Detection from Chest X-Rays via I-JEPA:
-               A Latent-Space Predictive Approach with Label-Efficient Learning},
+               A Latent-Space Predictive Approach},
   author    = {Nguyen, Tong Phuc},
   year      = {2026},
   note      = {Undergraduate Research, Nam Can Tho University}

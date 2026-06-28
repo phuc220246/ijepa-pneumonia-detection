@@ -243,9 +243,8 @@ Nếu bạn sử dụng code hoặc kết quả trong nghiên cứu của mình:
 
 Hệ thống **PneumoScan AI** hiện được triển khai trực tuyến trên máy chủ CloudFly. Người dùng có thể truy cập và trải nghiệm các chức năng của hệ thống như tải ảnh X-quang ngực, lựa chọn mô hình AI, thực hiện dự đoán và xem kết quả phân loại thông qua địa chỉ dưới đây.
 
-👉 **Địa chỉ Web công khai:** (http://103.82.21.245/)
+👉 **Địa chỉ Web công khai:** http://103.82.21.245/
 
-👉 Địa chỉ Web công khai:
 ---
 
 ## 👤 Tác giả
